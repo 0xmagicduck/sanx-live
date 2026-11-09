@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAN-X Trend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : bandeau live en tête, puis la stratégie en colonne de lecture, chiffres en grille. */
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --ink:#14213a; --muted:#5a6680; --line:#d6dce6;
+  --accent:#1f4fd6; --up:#0f7a4b; --down:#b8322a; --warn:#a86a00;
+  --display:"Archivo",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1420; --panel:#161e2e; --ink:#e4e9f2; --muted:#93a0b8; --line:#26324a;
+  --accent:#7c9dff; --up:#3ccf8e; --down:#ff7a6e; --warn:#f0b44c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1420; --panel:#161e2e; --ink:#e4e9f2; --muted:#93a0b8; --line:#26324a;
+  --accent:#7c9dff; --up:#3ccf8e; --down:#ff7a6e; --warn:#f0b44c; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--body)}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:22px;font-weight:700}
+h3{font-size:16px;font-weight:700}
+p{margin:0;max-width:68ch}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:end;justify-content:space-between}
+.status{display:flex;align-items:center;gap:8px;font:500 13px var(--mono)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--up);box-shadow:0 0 0 4px color-mix(in srgb,var(--up) 25%,transparent)}
+.dot.err{background:var(--down)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:16px;min-width:0}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+@media (max-width:640px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--panel);padding:14px 16px;display:grid;gap:2px}
+.tile .v{font:500 clamp(16px,2.4vw,22px) var(--mono);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)}
+.chart{width:100%;height:220px;display:block}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.r,th.r{text-align:right}
+.bar{height:6px;border-radius:3px;background:var(--line);min-width:60px}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+input,select{font:14px var(--mono);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
+button{font:600 14px var(--body);padding:9px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--panel);cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:13px;color:var(--muted)}
+.err-msg{color:var(--down);font:13px var(--mono)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.rule{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}
+.rule dt{font:500 13px var(--mono);color:var(--accent)}
+.rule dd{margin:0}
+pre{font:13px/1.55 var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;margin:0}
+.chip{display:inline-block;font:500 12px var(--mono);padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div style="display:grid;gap:6px">
+    <span class="eyebrow">Expert Advisor MT5 · v1.1 · magic 26110901</span>
+    <h1>SAN-X Trend</h1>
+    <p>Rotation momentum long-only sur tous les ETF et actions du broker. Les 10 tendances les plus régulières, équipondérées, revues chaque mercredi.</p>
+  </div>
+  <div class="status"><span class="dot" id="dot"></span><span id="status">Chargement…</span></div>
+</header>
+
+<!-- ===== LIVE ===== -->
+<section class="panel" aria-labelledby="live-h">
+  <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center">
+    <h2 id="live-h">Portefeuille en direct</h2>
+    <span id="regime" class="chip">—</span>
+  </div>
+  <p class="err-msg" id="err" hidden></p>
+
+  <div class="tiles">
+    <div class="tile"><span class="eyebrow">Equity</span><span class="v" id="t-equity">—</span></div>
+    <div class="tile"><span class="eyebrow">Performance</span><span class="v" id="t-perf">—</span></div>
+    <div class="tile"><span class="eyebrow">Aujourd'hui</span><span class="v" id="t-day">—</span></div>
+    <div class="tile"><span class="eyebrow">Drawdown max</span><span class="v" id="t-dd">—</span></div>
+    <div class="tile"><span class="eyebrow">Exposition</span><span class="v" id="t-expo">—</span></div>
+    <div class="tile"><span class="eyebrow">Lignes</span><span class="v" id="t-pos">—</span></div>
+    <div class="tile"><span class="eyebrow">Trades clos · gagnants</span><span class="v" id="t-win">—</span></div>
+    <div class="tile"><span class="eyebrow">VaR 95 % 1 mois</span><span class="v" id="t-var">—</span></div>
+  </div>
+
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+      <h3>Courbe de balance</h3><span class="note num" id="curve-note"></span>
+    </div>
+    <svg class="chart" id="chart" viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-label="Courbe de balance"></svg>
+  </div>
+
+  <div>
+    <h3>Positions ouvertes</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Symbole</th><th class="r">Volume</th><th class="r">Prix d'entrée</th><th class="r">Cours</th><th class="r">P/L</th><th class="r">Var.</th><th>Poids</th><th>Ouverte le</th></tr></thead>
+      <tbody id="pos-body"><tr><td colspan="8" class="note">Chargement…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <div class="cols">
+    <div style="min-width:0">
+      <h3>Top momentum Clenow</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>#</th><th>Symbole</th><th class="r">Score</th><th class="r">R²</th><th></th></tr></thead>
+        <tbody id="top-body"><tr><td colspan="5" class="note">—</td></tr></tbody>
+      </table></div>
+    </div>
+    <div style="min-width:0">
+      <h3>Derniers trades clos</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>Date</th><th>Symbole</th><th class="r">Résultat</th></tr></thead>
+        <tbody id="deal-body"><tr><td colspan="3" class="note">—</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+  <p class="note" id="updated"></p>
+</section>
+
+<!-- ===== STRATÉGIE ===== -->
+<section class="panel" aria-labelledby="strat-h">
+  <h2 id="strat-h">La stratégie</h2>
+  <p>Les règles viennent de <em>Stocks on the Move</em> d'Andreas Clenow, sans optimisation. L'idée : rester investi dans le marché haussier, mais concentrer le capital sur les titres qui montent le plus <strong>régulièrement</strong>, et passer en cash quand le marché casse.</p>
+
+  <div class="cols">
+    <div style="display:grid;gap:10px">
+      <h3>1. Classer tout l'univers</h3>
+      <p>Toutes les heures, l'EA calcule pour chaque ETF et action la régression du log-prix sur 90 jours. Score = rendement annualisé × R². Une hausse de 40 % en dents de scie score moins qu'une hausse de 30 % en ligne droite.</p>
+    </div>
+    <div style="display:grid;gap:10px">
+      <h3>2. Filtrer</h3>
+      <dl class="rule">
+        <dt>Tendance</dt><dd>Clôture D1 au-dessus de la SMA100</dd>
+        <dt>Gaps</dt><dd>Aucun gap D1 &gt; 15 % sur 90 jours</dd>
+        <dt>Prix</dt><dd>≥ 5 $ (pas de penny stocks)</dd>
+        <dt>Régime</dt><dd>Achats seulement si le SPY clôture au-dessus de sa SMA200</dd>
+      </dl>
+    </div>
+    <div style="display:grid;gap:10px">
+      <h3>3. Rebalancer le mercredi</h3>
+      <p>On garde une ligne tant qu'elle reste dans le top 20 et au-dessus de sa SMA100. On complète jusqu'à 10 lignes de 10 % de l'equity avec les meilleurs scores. Une ligne qui dépasse 20 % est allégée. Les gagnantes courent sans renforcement.</p>
+    </div>
+    <div style="display:grid;gap:10px">
+      <h3>4. Sortir</h3>
+      <p>Chaque jour, une clôture D1 sous la SMA100 vend la ligne. Pas de stop-loss : le filtre de régime et la SMA100 gèrent le risque. Le calendrier économique MT5, le spread et la session filtrent les achats.</p>
+    </div>
+  </div>
+
+  <pre>Scanner horaire ─► score Clenow (90 j, rendement × R²) ─► classement de l'univers
+       │
+       ├─ éligible : close &gt; SMA100 · gaps &lt; 15 % · prix ≥ 5 $
+       └─ régime   : SPY &gt; SMA200, sinon aucun achat
+Mercredi ─► garde top 20 · complète à 10 lignes × 10 % · allège &gt; 20 %
+Chaque jour ─► close &lt; SMA100 = sortie</pre>
+</section>
+
+<!-- ===== CHIFFRES DE RECHERCHE ===== -->
+<section class="panel" aria-labelledby="bt-h">
+  <h2 id="bt-h">Chiffres de recherche</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Version</th><th>Période</th><th class="r">Rendement / an</th><th class="r">Drawdown max</th><th>Remarque</th></tr></thead>
+    <tbody>
+      <tr><td>Rotation comptant (Darwinex)</td><td class="num">2008-2026</td><td class="r num up">21.9 %</td><td class="r num down">-40 %</td><td class="note">Biais du survivant avant 2020</td></tr>
+      <tr><td>Rotation levier 1.5x (Vantage)</td><td class="num">2008-2026</td><td class="r num up">23.7 %</td><td class="r num down">-59 %</td><td class="note">Swaps CFD inclus</td></tr>
+      <tr><td>SPY (référence)</td><td class="num">2008-2026</td><td class="r num">11.2 %</td><td class="r num down">≈ -55 %</td><td class="note">Prix seul</td></tr>
+      <tr><td>Sniper Fibonacci (MT5)</td><td class="num">2024-2026</td><td class="r num up">+22 % total</td><td class="r num down">-4.3 %</td><td class="note">PF 1.45, Sharpe 4.04 ; SPY +60 % sur la période</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Le mode sniper a une courbe très lisse mais reste surtout en cash : il ne peut pas battre le SPY en marché haussier. C'est pourquoi la rotation est le mode par défaut. Attendre des drawdowns de 30 à 40 % dans un krach.</p>
+</section>
+
+</div>
+
+<script>
+// Dépôt GitHub où l'EA pousse data.json (inputs InpWebRepo / InpWebToken).
+const REPO = "0xmagicduck/sanx-live";
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 2) => n == null || isNaN(n) ? "—" : n.toLocaleString("fr-FR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = n => n == null || isNaN(n) ? "—" : (n >= 0 ? "+" : "") + fmt(n) + " %";
+const sign = (el, n) => { el.classList.toggle("up", n > 0); el.classList.toggle("down", n < 0); };
+const day = s => s ? s.slice(8, 10) + "/" + s.slice(5, 7) + "/" + s.slice(0, 4) : "—";
+function cell(text, cls) { const td = document.createElement("td"); td.textContent = text; if (cls) td.className = cls; return td; }
+function empty(tbody, cols, text) { const tr = document.createElement("tr"), td = cell(text, "note"); td.colSpan = cols; tr.append(td); tbody.replaceChildren(tr); }
+
+function drawCurve(curve) {
+  const svg = $("chart"), ns = "http://www.w3.org/2000/svg";
+  svg.replaceChildren();
+  if (curve.length < 2) { $("curve-note").textContent = "Pas encore assez d'historique."; return; }
+  const ts = curve.map(c => Date.parse(c[0].replace(" ", "T"))), vals = curve.map(c => c[1]);
+  const t0 = ts[0], t1 = ts.at(-1), lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
+  const pts = curve.map((c, i) => `${((ts[i] - t0) / (t1 - t0 || 1) * 1000).toFixed(1)},${(210 - (c[1] - lo) / span * 200).toFixed(1)}`);
+  const mk = (tag, attrs) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.append(e); };
+  for (let i = 0; i <= 4; i++) mk("line", {x1: 0, x2: 1000, y1: 10 + i * 50, y2: 10 + i * 50, stroke: "var(--line)", "stroke-width": 1, "vector-effect": "non-scaling-stroke"});
+  mk("polygon", {points: `0,220 ${pts.join(" ")} 1000,220`, fill: "color-mix(in srgb, var(--accent) 14%, transparent)"});
+  mk("polyline", {points: pts.join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": 2, "vector-effect": "non-scaling-stroke"});
+  $("curve-note").textContent = `${day(curve[0][0])} → ${day(curve.at(-1)[0])} · min ${fmt(lo, 0)} · max ${fmt(hi, 0)}`;
+}
+
+function render(d) {
+  const cur = d.currency || "";
+  $("regime").textContent = d.regimeOn ? `${d.benchmark} > SMA200 · achats autorisés` : `${d.benchmark} < SMA200 · cash, pas d'achat`;
+  $("regime").className = "chip " + (d.regimeOn ? "up" : "down");
+  $("t-equity").textContent = fmt(d.equity) + " " + cur;
+  const perf = d.deposits > 0 ? (d.equity / d.deposits - 1) * 100 : NaN;
+  $("t-perf").textContent = pct(perf); sign($("t-perf"), perf);
+  $("t-day").textContent = pct(d.dayPct); sign($("t-day"), d.dayPct);
+  $("t-dd").textContent = d.maxDD == null ? "—" : "-" + fmt(d.maxDD) + " %";
+  $("t-expo").textContent = fmt(d.exposure, 0) + " %";
+  $("t-pos").textContent = `${d.positions.length} / ${d.maxPositions}`;
+  $("t-win").textContent = d.closed ? `${d.closed} · ${fmt(d.wins / d.closed * 100, 0)} %` : "0";
+  $("t-var").textContent = fmt(d.var95m) + " %";
+  drawCurve(d.curve || []);
+
+  const pb = $("pos-body");
+  if (!d.positions.length) empty(pb, 8, d.regimeOn ? "Aucune position : en attente du prochain rebalancement (mercredi)." : "Aucune position : régime baissier, le portefeuille est en cash.");
+  else pb.replaceChildren(...[...d.positions].sort((a, b) => b.weight - a.weight).map(p => {
+    const chg = (p.price / p.open - 1) * 100, tr = document.createElement("tr"), w = document.createElement("td");
+    w.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><div class="bar" style="flex:1"><i style="width:${Math.min(100, p.weight * 5).toFixed(0)}%"></i></div><span class="num">${fmt(p.weight, 1)} %</span></div>`;
+    tr.append(cell(p.symbol), cell(fmt(p.volume, 0), "r num"), cell(fmt(p.open), "r num"), cell(fmt(p.price), "r num"),
+      cell(fmt(p.pl), "r num " + (p.pl >= 0 ? "up" : "down")), cell(pct(chg), "r num " + (chg >= 0 ? "up" : "down")), w, cell(day(p.time), "num"));
+    return tr;
+  }));
+
+  const tb = $("top-body");
+  if (!d.top.length) empty(tb, 5, "Scanner en cours de chargement.");
+  else tb.replaceChildren(...d.top.map((t, i) => {
+    const tr = document.createElement("tr");
+    tr.append(cell(i + 1, "num"), cell(t.symbol), cell(fmt(t.score, 0) + " %", "r num"), cell(fmt(t.r2), "r num"), cell(t.held ? "en portefeuille" : "", "note"));
+    return tr;
+  }));
+
+  const db = $("deal-body");
+  if (!d.trades.length) empty(db, 3, "Aucun trade clos pour l'instant.");
+  else db.replaceChildren(...d.trades.map(t => {
+    const tr = document.createElement("tr");
+    tr.append(cell(day(t.time), "num"), cell(t.symbol), cell(fmt(t.pl) + " " + cur, "r num " + (t.pl >= 0 ? "up" : "down")));
+    return tr;
+  }));
+
+  const age = (Date.now() - Date.parse(d.updated.replace(/\./g, "-").replace(" UTC", "Z").replace(" ", "T"))) / 60e3;
+  $("dot").className = "dot " + (age < 60 ? "ok" : "");
+  $("status").textContent = `${d.broker} · ${d.mode} · ${age < 60 ? "live" : "marché fermé"}`;
+  $("updated").textContent = `Publié par l'EA le ${d.updated} · univers de ${d.universe} symboles · breadth ${fmt(d.breadth, 0)} % · vol ex-ante ${fmt(d.volAnnual, 1)} %/an.`;
+}
+
+async function refresh() {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/data.json`, {headers: {Accept: "application/vnd.github.raw+json"}, cache: "no-store"});
+    if (!r.ok) throw new Error(r.status === 404 ? "L'EA n'a encore rien publié." : r.status === 403 ? "Trop de rafraîchissements, réessaie dans quelques minutes." : "Erreur " + r.status);
+    render(await r.json());
+    $("err").hidden = true;
+  } catch (e) {
+    $("dot").className = "dot err"; $("status").textContent = "Données indisponibles";
+    $("err").textContent = e.message; $("err").hidden = false;
+  }
+}
+refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, 120e3);
+</script>
+</body>
+</html>
